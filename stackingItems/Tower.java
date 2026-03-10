@@ -1,23 +1,23 @@
 import java.util.ArrayList;
 import java.util.HashMap;
-
+import java.lang.Math;
 /**
- * La clase Torre cuanta con limites de altura y ancho, ademas contiene a las tazas y tapas apilandolas y puede realizar cambios sobre las mismas.
+ * La clase Torre cuenta con limites de altura y ancho, contiene a las tazas y tapas apilandolas y puede realizar cambios sobre las mismas.
  * 
  * @author Laura Juliana Parra Velandia y Daniel Santiago Morales Perdomo
  * @version 1.1
  */
 public class Tower
 {
-    private final String dimensionSuperaAltura = "Las dimensiones de la nueva taza, superan la altura maxima de la torre.";
-    private final String dimensionSuperaAncho = "Las dimensiones de la nueva taza, superan el ancho maximo de la torre.";
+    private final String dimensionSuperaAltura = "Al insertar el nuevo elemento, se supera la altura maxima de la torre.";
+    private final String dimensionSuperaAncho = "Al insertar el nuevo elemento, se supera el ancho maximo de la torre.";
+    private final String yaExiste = "Ya existe este numero de elemento en la torre.";
     private int maxWidth;
     private int maxHeight;
-    private int currentHeight;//ALtura total de la pila de elementos actuales
-    private int currentWidth;//Ancho total de la pila de elementos actuales
+    private int currentHeight;
+    private int currentWidth;
     private ArrayList<Elemento> stack;
     private HashMap<Elemento, Rectangle> visualElements;
-    private int currentBaseHeight;//Altura del hueco de la taza del centro, o altura a la que se encuentra la tapa del centro
     private boolean isVisible;
     private Canvas canvas;
     
@@ -40,7 +40,6 @@ public class Tower
         currentWidth = 0;
         stack = new ArrayList<Elemento>();
         visualElements = new HashMap<Elemento, Rectangle>();
-        currentBaseHeight = 0;
         isVisible = false;
         ok(' ');
     }
@@ -56,16 +55,14 @@ public class Tower
             ok('N');
             throw new IllegalArgumentException("El número de tazas debe ser un numero entero positivo.");
         }
-        //Inicializamos valores de la torre teniendo en cuenta la taza mas grande que define la mayoria
-        maxHeight = (2 * cups) - 1;
+        //Inicializamos valores teniendo en cuenta la altura de las tazas apiladas desde la pequeña a la mas grande (Altura maxima posible)
+        maxHeight = cups * cups;
         maxWidth = (2 * cups) - 1;
         currentHeight = (2 * cups) - 1;
         currentWidth = (2 * cups) - 1;
         stack = new ArrayList<Elemento>();
         visualElements = new HashMap<Elemento, Rectangle>();
-        currentBaseHeight = cups;
         isVisible = false;
-        //Añadimos las tazas desde la mas grande hasta la mas pequeña
         for (int i = cups; i >= 1; i--) {
             stack.add(new Cup(i));
         }
@@ -84,137 +81,134 @@ public class Tower
     }
     
     /**
-     * Agrega una taza con número i a la cima de la torre.
-     * Falla si i es inválido, ya existe la taza o no cabe.
-     * Actualiza ok según el resultado.
+     * Genera una tupla que define si un elemento es una taza o tapa, y su ancho.
+     * 
      */
-    public void pushCup(int i) 
-    {
-        int dimension = (2 * (validateCup(i)) ) - 1;
-        if (dimension > maxHeight) {
-            ok('N');
-            throw new IllegalArgumentException(dimensionSuperaAltura);
-        }
-        if (dimension > maxWidth) {
-            ok('N');
-            throw new IllegalArgumentException(dimensionSuperaAncho);
-        }//En los dos anteriores verificamos que la nueva taza por si sola no supere el ancho y alto maximo de la torre
-        for (Elemento e : stack) { //Verificamos que no exista ya ese numero de taza
-            if (e instanceof Cup && ((Cup) e).getNumber() == i) {
-                ok('N');
-                return;
+    private String[] Tupla(Elemento e) {
+        String[] tupla =new String[2];
+        if (e instanceof Cup) {
+                tupla[0] = "C";
+            } else {
+                tupla[0] = "L";
             }
-        }
-        //Verificamos que este vacia la torre, si lo esta la agregamos, sino buscamos donde apilarla
-        if (currentHeight != 0 && currentWidth != 0){
-            for (int j = stack.size() - 1;j >= 0; j--) {
-                Elemento recentCup = stack.get(j);
-                if (recentCup.getWidth() > dimension) {//Miramos si el elemento del centro puede contener la taza por dentro
-                    if (currentBaseHeight + dimension <= maxHeight) {//Verificamos que poner el elemento por dentro no supere la altura
-                        currentBaseHeight = currentBaseHeight + 1;
-                        if (currentBaseHeight > currentHeight) {//Si la altura de la pila es mas alta que el actual, se actualiza
-                            currentHeight = currentBaseHeight;
-                        }
-                        stack.add(new Cup(i));
-                        ok(' ');
-                        break;
-                    } else {
-                        ok('N');
-                        throw new IllegalArgumentException(dimensionSuperaAltura);
-                    }
-                } else { //Miramos si el siguiente elemento si puede contener la taza, y lo ponemos encima del anterior elemento
-                    if (j != 0) {
-                        Elemento nextCup = stack.get(j-1);
-                        if (nextCup.getWidth() > dimension) {
-                            if (currentBaseHeight + recentCup.getHeight() - 1 + dimension <= maxHeight) {
-                                currentBaseHeight = currentBaseHeight + dimension;
-                                if (currentBaseHeight > currentHeight) {
-                                    currentHeight = currentBaseHeight;
-                                }
-                                stack.add(new Cup(i));
-                                ok(' ');
-                                break;
-                            } else {
-                                ok('N');
-                                throw new IllegalArgumentException(dimensionSuperaAltura);
-                            }
-                        } else {
-                            continue;
-                        }
-                    } else { //Se recorrieron todas las tazas y no se puede contener la nueva
-                        ok('N');
-                        throw new IllegalArgumentException("Las dimensiones de la taza hacen que no puede estar ni dentro ni encima de otra taza.");
-                    }
-                }
-            }
-        } else {
-            currentHeight = dimension;
-            currentWidth = dimension;
-            stack.add(new Cup(i));
-            currentBaseHeight = 1;
-            ok(' ');
-        }
-        if (isVisible) {
-            redraw();
-        }
+            tupla[1] = String.valueOf(e.getWidth());
+        return tupla;
     }
     
     /**
-     * Calcula la altura actual de la torre
+     * Calcula la altura actual de la torreta
+     * 
      */
-    public int calculateCurrentHeight() {
-        if (stack.isEmpty()) {
-            return 0;
-        }
-        int biggestWidth = 0;
-        int heightLastElement = 0;
-        boolean LastElementLid = false;
+    private int sumSimulation(ArrayList<String[]> sim) {
         int newCurrentHeight = 0;
-        int newCurrentBaseHeight = 0;
-        for (int i = 0;i < stack.size();i++) {
-            Elemento e = stack.get(i);
-            if (biggestWidth == 0) { //Si estamos mirando el elemento mas bajo de la pila
-                biggestWidth = e.getWidth();
-                heightLastElement = e.getHeight();
-                newCurrentHeight = e.getHeight();
-                newCurrentBaseHeight = 1;
-                continue;
-            }
-            if (e instanceof Cup) {
-                Cup cup = (Cup) e;
-                if (e.getWidth() >= biggestWidth) { //La taza queda por encima de otra taza o tapa
-                    biggestWidth = e.getWidth();
-                    newCurrentHeight = newCurrentHeight + e.getHeight();
-                    newCurrentBaseHeight = newCurrentBaseHeight + heightLastElement;
-                    heightLastElement = e.getHeight();
-                    continue;
-                } else { //La taza quedaria por dentro de otra taza
-                    newCurrentBaseHeight = newCurrentBaseHeight + heightLastElement;
-                    heightLastElement = e.getHeight();
-                    continue;
-                }
-            } else if (e instanceof Lid) {
-                Lid lid = (Lid) e;
-                if (e.getWidth() >= biggestWidth) { //La tapa queda por encima de otra taza o tapa
-                    biggestWidth = e.getWidth();
-                    heightLastElement = e.getHeight();
-                    newCurrentHeight = newCurrentBaseHeight + e.getHeight();
-                    newCurrentBaseHeight = newCurrentBaseHeight + heightLastElement;
-                    continue;
-                } else { //La tapa quedaria por dentro de otra taza
-                    heightLastElement = e.getHeight();
-                    newCurrentBaseHeight = newCurrentBaseHeight + heightLastElement;
-                    continue;
-                }
+        for (int k = 0; k < sim.size(); k++) {
+            if (sim.get(k)[0] == "L") {
+                newCurrentHeight = newCurrentHeight + 1;
+            } else {
+                newCurrentHeight = newCurrentHeight + Integer.valueOf(sim.get(k)[1]);
             }
         }
         return newCurrentHeight;
     }
     
     /**
+     * Calcula la altura actual de la torreta
+     * 
+     */
+    private int calculateCurrentHeight() {
+        if (stack.isEmpty()) {
+            return 0;
+        }
+        ArrayList<String[]> simulacion = new ArrayList<String[]>();
+        for (int i = stack.size() - 1;i >= 0; i--) {
+            Elemento elemento = stack.get(i);
+            String[] agregar = Tupla(elemento);
+            int dimension = elemento.getWidth();
+            int espacio = elemento.getHeight() - 1;
+            if (simulacion.isEmpty()) {
+                simulacion.add(agregar);
+            } else {
+                int inicioEliminar = 0;
+                int anchoUltimoElemento = Integer.valueOf(simulacion.get(simulacion.size()-1)[1]);
+                if (dimension <= anchoUltimoElemento) {
+                    simulacion.add(agregar);
+                } else {
+                    String[] extra = {null,null};
+                    for (int j = simulacion.size() - 1; j >= 0; j--) {
+                        if (dimension > Integer.valueOf(simulacion.get(j)[1])) {
+                            espacio = espacio - Integer.valueOf(simulacion.get(j)[1]);
+                            inicioEliminar = j;
+                            if (espacio == 0) {
+                                break;
+                            }else if (espacio < 0) {
+                                extra[0] = "E";
+                                extra[1] = String.valueOf(Math.abs(espacio));
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    simulacion.subList(inicioEliminar,simulacion.size()).clear();
+                    if (extra[0] != null) {
+                        simulacion.add(extra);
+                    }
+                    simulacion.add(agregar);
+                }
+            }
+        }
+        return sumSimulation(simulacion);
+    }
+    
+    /**
+     * Calcula la altura de la torre si se agregara un nuevo elemento
+     * 
+     */
+    private int calculateHeightWithNewElement(String[] nuevo) {
+        if (stack.isEmpty()) {
+            return Integer.valueOf(nuevo[1]);
+        }
+        ArrayList<String[]> simulacion = new ArrayList<String[]>();
+        simulacion.add(nuevo);
+        for (int i = stack.size() - 1;i >= 0; i--) {
+            Elemento elemento = stack.get(i);
+            String[] agregar = Tupla(elemento);
+            int dimension = elemento.getWidth();
+            int espacio = elemento.getHeight() - 1;
+            //Inicio de comprobar la altura
+            int inicioEliminar = 0;
+            int anchoUltimoElemento = Integer.valueOf(simulacion.get(simulacion.size()-1)[1]);
+            if (dimension <= anchoUltimoElemento) {
+                simulacion.add(agregar);
+            } else {
+                String[] extra = {null,null};
+                for (int j = simulacion.size() - 1; j >= 0; j--) {
+                    if (dimension > Integer.valueOf(simulacion.get(j)[1])) {
+                        espacio = espacio - Integer.valueOf(simulacion.get(j)[1]);
+                        inicioEliminar = j;
+                        if (espacio == 0) {
+                            break;
+                        }else if (espacio < 0) {
+                            extra[0] = "E";
+                            extra[1] = String.valueOf(Math.abs(espacio));
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                simulacion.subList(inicioEliminar,simulacion.size()).clear();
+                if (extra[0] != null) {
+                    simulacion.add(extra);
+                }
+                simulacion.add(agregar);
+            }
+        }
+        return sumSimulation(simulacion);
+    }
+    
+    /**
      * Calcula el ancho actual de la torre
      */
-    public int calculateCurrentWidth() {
+    private int calculateCurrentWidth() {
         if (stack.isEmpty()) {
             return 0;
         }
@@ -229,13 +223,41 @@ public class Tower
     }
     
     /**
-     * Calcula la altura actual de la base de la torre
+     * Agrega una taza con número i a la cima de la torre.
+     * Falla si i es inválido, ya existe la taza o no cabe.
+     * Actualiza ok según el resultado.
      */
-    public int calculateCurrentBaseHeight() {
-        if (stack.isEmpty()) {
-            return 0;
+    public void pushCup(int i) 
+    {
+        int dimension = (2 * (validateCup(i)) ) - 1;
+        if (dimension > maxHeight) {
+            ok('N');
+            throw new IllegalArgumentException(dimensionSuperaAltura);
         }
-        return 1;
+        if (dimension > maxWidth) {
+            ok('N');
+            throw new IllegalArgumentException(dimensionSuperaAncho);
+        }
+        for (Elemento e : stack) {
+            if (e instanceof Cup && ((Cup) e).getNumber() == i) {
+                ok('N');
+                throw new IllegalArgumentException(yaExiste);
+            }
+        }
+        String[] nuevo = {"C",String.valueOf(dimension)};
+        int alturaPosible = calculateHeightWithNewElement(nuevo);
+        if (alturaPosible > maxHeight) {
+            ok('N');
+            throw new IllegalArgumentException(dimensionSuperaAltura);
+        } else {
+            stack.add(new Cup(i));
+            currentHeight = alturaPosible;
+            currentWidth = calculateCurrentWidth();
+            ok(' ');
+        }
+        if (isVisible) {
+            redraw();
+        }
     }
     
     /**
@@ -254,7 +276,6 @@ public class Tower
         stack.remove(stack.size() - 1);
         currentHeight = calculateCurrentHeight();
         currentWidth = calculateCurrentWidth();
-        currentBaseHeight = calculateCurrentBaseHeight();
         ok(' ');
         if (isVisible) {
             redraw();
@@ -267,23 +288,32 @@ public class Tower
      * Actualiza ok según el resultado.
      */
     public void pushLid(int i) {
-        Lid lid = new Lid(validateLid(i));
-        // Verificar límites
-        if (lid.getWidth() > maxWidth || currentHeight + lid.getHeight() > maxHeight) {
+        int dimension = (2 * (validateCup(i)) ) - 1;
+        if (dimension > maxHeight) {
             ok('N');
-            return;
+            throw new IllegalArgumentException(dimensionSuperaAltura);
         }
-
-        // Verificar que no exista ya una tapa con ese número
+        if (dimension > maxWidth) {
+            ok('N');
+            throw new IllegalArgumentException(dimensionSuperaAncho);
+        }
         for (Elemento e : stack) {
             if (e instanceof Lid && ((Lid) e).getNumber() == i) {
                 ok('N');
-                return;
+                throw new IllegalArgumentException(yaExiste);
             }
         }
-        stack.add(lid);
-        currentHeight += lid.getHeight();
-        ok(' ');
+        String[] nuevo = {"L",String.valueOf(dimension)};
+        int alturaPosible = calculateHeightWithNewElement(nuevo);
+        if (alturaPosible > maxHeight) {
+            ok('N');
+            throw new IllegalArgumentException(dimensionSuperaAltura);
+        } else {
+            stack.add(new Lid(i));
+            currentHeight = alturaPosible;
+            currentWidth = calculateCurrentWidth();
+            ok(' ');
+        }
         if (isVisible) {
             redraw();
         }
